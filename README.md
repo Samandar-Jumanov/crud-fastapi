@@ -1,0 +1,155 @@
+# crud-fastapi
+#How to make crud application in fastapi and postgresql 
+
+After connected to db and made models schemas  we must split our files routers , controllers and main 
+It will help us to better and faster understing of coding 
+
+And in controlerrs 
+
+def get_all(post:PostSchema , db : Session = Depends(connect_db)):
+     all_post = db.query(PostModel).all()
+
+     if not  all_post:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+     return  {all_post}
+
+
+And in routes file :
+
+@router.get('/get')
+
+def all_post(post:PostSchema ,db:Session = Depends(connect_db)):
+  return contens_controller.get_all(post = post , db = db)
+
+
+post:PostSchema defines what we use in our posts (title:str or etc..)
+db: Session = Depends(connect_db) 
+db is used for to provide   for the database session 
+connect_db is passed as argument from the Depends function 
+this means when the route is called  connect_db automacalliy is called to create a session function 
+
+
+
+all_post deifnes all of the posts from the db 
+
+And if all_post is sends response to the client side 
+
+
+
+#Create new post 
+
+def create(post :PostSchema , db : Session=Depends(connect_db)):
+  new_post = PostModel(
+    title = post.title
+    content = post.content
+  )
+
+  try:
+    db.add(new_post)
+    db.commit()
+  except Exception as error: 
+     raise HTTPException(status_code = status.HTTP_500_INTERNAL_SERVER_ERROR, detail = 'Cannot post')
+  finally:
+     return new_post
+
+Basicly it makes a new post from PostModel and PostSchema then adds it to the db the saves it 
+
+And we cam improve it:
+ new_post = PostModel(**post.dict())  This may be better but  i would like to use th other one 
+To make me more sense 
+
+
+And in the routes file 
+ 
+ @router.post('/new')
+ def create_new(post:PostSchema , db : Session = Depends(connect_db)):
+   return contents.create(post = post, db = db)
+
+
+#Update a post 
+
+def update(postid:int , post : PostSchema , db : Session = Depends(connect_db)):
+  updatable = db.query(PostModel).filter(PostModel.id == postid).first()
+   
+   if not updatable :
+     raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = 'Cant find post with id ')
+   try:
+      updatable.title = post.title 
+      updatable.content = post.content
+      db.commit()
+      db.refresh(uptable)
+    except Exception as err:
+      raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = 'Cant find post with id ')
+    
+    finally:
+      return updatable
+
+
+in routes file 
+
+@router.put('/update/{postid}')
+  def update_post(postid : int , post:PostSchema , db: Session = Depends(connect_db)):
+     return contents.update(postid = postid , post = post , db = db)
+
+
+What we are doing here 
+First we must define the post with id 
+  updatable = db.query(PostModel).filter(PostModel.id == postid).first()
+
+Then we must check if it is or not 
+
+then we must get the title and content 
+updatable.title (title from the request) = post.title 
+updatable.content (content from the request) = post.content 
+
+
+After that we must save the db and refresh with the updatable post 
+
+
+
+#And the last one is delete 
+
+def delete(postid : int , db : Session = Depends(connect_db)):
+  post = db.query(PostModel).filter(Postmodel.id == postid ).first()
+
+  if not post :
+      raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = 'Cant find post with id ')
+   
+   try:
+     db.delete(post)
+     db.commit()
+   except Exception as error:
+      raise HTTPException(status_code = status.HTTP_500_INTERNAL_SERVER_ERROR, detail = erorr)
+    finally:
+      return {"message": "Deleted "}
+     
+
+in routers file 
+
+@router.delete('/delete/{postid}')
+def delete_post(postid: int , db : Session =Depends(connect_db)):
+  return contents.delete(postid = postid , db = db)
+
+And in main.py file 
+
+
+
+#db connection 
+
+connect_db()
+#Cors 
+origins = ["*"]  
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(content.router)
+
+Thats it 
+
+
+
